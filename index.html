@@ -15,6 +15,7 @@
     --s2-bg:#e3edfb; --s2-fg:#1d5bb8;
     --s3-bg:#dff3e6; --s3-fg:#1b7a43;
     --danger:#c0392b;
+    --c-thuong:#2a78d6; --c-basic:#eb6834; --grid:#e1e0d9; --axis:#c3c2b7; --hover:rgba(0,0,0,.04);
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -25,6 +26,7 @@
       --s2-bg:#16294a; --s2-fg:#8cb6f5;
       --s3-bg:#123222; --s3-fg:#78d39f;
       --danger:#ef7b6d;
+      --c-thuong:#3987e5; --c-basic:#d95926; --grid:#2c2c2a; --axis:#383835; --hover:rgba(255,255,255,.05);
     }
   }
   *{box-sizing:border-box}
@@ -47,8 +49,7 @@
   .dot{width:8px;height:8px;border-radius:50%}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
   table{min-width:760px}
-  .type{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12.5px;font-weight:600;border:1px solid var(--line)}
-  .type.t1{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  
   .date{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink);font-size:14px}
   .date.none{color:var(--muted)}
   .two{display:flex;gap:12px}.two>div{flex:1}
@@ -73,6 +74,40 @@
   .icon-btn:hover{background:var(--bg);color:var(--ink)}
   .icon-btn.del:hover{color:var(--danger)}
   .empty{padding:48px 20px;text-align:center;color:var(--muted)}
+  .t0c{--tc:var(--c-thuong)} .t1c{--tc:var(--c-basic)}
+  .section{margin-bottom:26px}
+  .sec-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px}
+  .sec-head h2{font-size:17px;margin:0;display:flex;align-items:center;gap:9px}
+  .sec-head h2 .sw{width:12px;height:12px;border-radius:3px;background:var(--tc)}
+  .sec-head h2 .n{font-size:13px;color:var(--muted);font-weight:600}
+  .btn-sm{padding:6px 12px;font-size:13px}
+  .card.typed{border-top:3px solid var(--tc)}
+  /* stats */
+  .stats{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px 14px;margin-bottom:28px}
+  .stats-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .stats h2{font-size:17px;margin:0}
+  .stats .hint{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .yearnav{display:flex;align-items:center;gap:4px}
+  .yearnav b{min-width:84px;text-align:center;font-size:14px}
+  .tiles{display:flex;gap:28px;margin:14px 0 6px;flex-wrap:wrap}
+  .tile .lab{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .tile .lab i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .tile .val{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+  .chart-wrap{position:relative}
+  #chart{width:100%;height:240px;display:block}
+  #chart text{font-family:inherit;font-size:11.5px;fill:var(--muted)}
+  #chart .grid{stroke:var(--grid);stroke-width:1}
+  #chart .base{stroke:var(--axis);stroke-width:1}
+  #chart .hit{fill:transparent;cursor:default}
+  #chart .hit:hover{fill:var(--hover)}
+  .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:8px 10px;border-radius:8px;white-space:nowrap;display:none;z-index:2;line-height:1.45}
+  .tip .r{display:flex;align-items:center;gap:6px} .tip i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .stats-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+  .legend{display:flex;gap:16px;font-size:13px;color:var(--ink)}
+  .legend span{display:flex;align-items:center;gap:6px} .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .linkbtn{border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;padding:0}
+  .mtable{margin-top:10px;display:none} .mtable.show{display:block}
+  .mtable table{min-width:0} .mtable td,.mtable th{padding:7px 12px;font-variant-numeric:tabular-nums}
   .savebar{font-size:12.5px;color:var(--muted);margin-top:12px;min-height:18px}
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
@@ -103,15 +138,33 @@
     <button class="btn btn-primary" id="addBtn">+ Thêm video</button>
   </header>
 
+  <section class="stats" aria-labelledby="statsTitle">
+    <div class="stats-head">
+      <div>
+        <h2 id="statsTitle">Thống kê theo tháng</h2>
+        <div class="hint">Số video làm xong (Hoàn thành video hoặc Đã đăng), tính theo ngày hoàn thành</div>
+      </div>
+      <div class="yearnav">
+        <button class="icon-btn" id="yPrev" aria-label="Năm trước"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <b id="yLabel"></b>
+        <button class="icon-btn" id="yNext" aria-label="Năm sau"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="chart-wrap">
+      <svg id="chart" role="img" aria-label="Biểu đồ số video làm xong theo tháng"></svg>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="stats-foot">
+      <div class="legend"><span><i style="background:var(--c-thuong)"></i>Thường</span><span><i style="background:var(--c-basic)"></i>Basic</span></div>
+      <button class="linkbtn" id="tblToggle">Xem dạng bảng</button>
+    </div>
+    <div class="mtable card" id="mtable"></div>
+  </section>
+
   <div class="filters" id="filters"></div>
 
-  <div class="card">
-    <table>
-      <thead><tr><th class="stt">STT</th><th>Tên video</th><th>Loại</th><th class="st-col">Trạng thái</th><th>Ngày bắt đầu</th><th>Ngày hoàn thành</th><th class="act-col"></th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-    <div class="empty" id="empty" style="display:none"></div>
-  </div>
+  <div id="tables"></div>
   <div class="savebar" id="savebar"></div>
 </div>
 
@@ -191,34 +244,123 @@
       ? videos.length + ' video · ' + counts[3] + ' đã đăng'
       : 'Chưa có video nào';
 
-    // rows
-    var html = '';
-    videos.forEach(function(v, idx){
-      if (filter !== 'all' && String(v.status) !== filter) return;
-      var opts = STATUSES.map(function(s,i){ return '<option value="'+i+'"'+(i===v.status?' selected':'')+'>'+s+'</option>'; }).join('');
-      html += '<tr>'+
-        '<td class="stt">'+(idx+1)+'</td>'+
-        '<td class="name">'+esc(v.name)+'</td>'+
-        '<td><span class="type t'+(v.type||0)+'">'+TYPES[v.type||0]+'</span></td>'+
-        '<td class="st-col"><select class="status s'+v.status+'" data-id="'+v.id+'" aria-label="Trạng thái" '+(canSave?'':'disabled')+'>'+opts+'</select></td>'+
-        '<td class="date'+(v.start?'':' none')+'">'+(v.start?fmt(v.start):'—')+'</td>'+
-        '<td class="date'+(v.end?'':' none')+'">'+(v.end?fmt(v.end):'—')+'</td>'+
-        '<td class="act-col">'+
-          (canSave ?
-          '<button class="icon-btn" data-edit="'+v.id+'" title="Sửa" aria-label="Sửa"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>'+
-          '<button class="icon-btn del" data-del="'+v.id+'" title="Xóa" aria-label="Xóa"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></button>'
-          : '') +
-        '</td></tr>';
+    // two tables: Thường (type 0) and Basic (type 1)
+    var icons = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+    var out = '';
+    [0,1].forEach(function(t){
+      var list = videos.filter(function(v){ return (v.type||0) === t; });
+      var html = '';
+      list.forEach(function(v, idx){
+        if (filter !== 'all' && String(v.status) !== filter) return;
+        var opts = STATUSES.map(function(s,i){ return '<option value="'+i+'"'+(i===v.status?' selected':'')+'>'+s+'</option>'; }).join('');
+        html += '<tr>'+
+          '<td class="stt">'+(idx+1)+'</td>'+
+          '<td class="name">'+esc(v.name)+'</td>'+
+          '<td class="st-col"><select class="status s'+v.status+'" data-id="'+v.id+'" aria-label="Trạng thái" '+(canSave?'':'disabled')+'>'+opts+'</select></td>'+
+          '<td class="date'+(v.start?'':' none')+'">'+(v.start?fmt(v.start):'—')+'</td>'+
+          '<td class="date'+(v.end?'':' none')+'">'+(v.end?fmt(v.end):'—')+'</td>'+
+          '<td class="act-col">'+
+            (canSave ?
+            '<button class="icon-btn" data-edit="'+v.id+'" title="Sửa" aria-label="Sửa">'+icons+'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>'+
+            '<button class="icon-btn del" data-del="'+v.id+'" title="Xóa" aria-label="Xóa">'+icons+'<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></button>'
+            : '') +
+          '</td></tr>';
+      });
+      var emptyMsg = list.length ? 'Không có video nào ở trạng thái này.' : 'Chưa có video ' + TYPES[t].toLowerCase() + ' nào.';
+      out += '<section class="section t'+t+'c">'+
+        '<div class="sec-head"><h2><span class="sw"></span>Video '+TYPES[t].toLowerCase()+' <span class="n">'+list.length+'</span></h2>'+
+        (canSave ? '<button class="btn btn-sm" data-add="'+t+'">+ Thêm video '+TYPES[t].toLowerCase()+'</button>' : '')+'</div>'+
+        '<div class="card typed"><table><thead><tr><th class="stt">STT</th><th>Tên video</th><th class="st-col">Trạng thái</th><th>Ngày bắt đầu</th><th>Ngày hoàn thành</th><th class="act-col"></th></tr></thead>'+
+        '<tbody>'+html+'</tbody></table>'+(html?'':'<div class="empty">'+emptyMsg+'</div>')+'</div></section>';
     });
-    $('rows').innerHTML = html;
-    var empty = $('empty');
-    if (!html){
-      empty.style.display = 'block';
-      empty.textContent = videos.length ? 'Không có video nào ở trạng thái này.' : 'Chưa có video nào. Bấm "+ Thêm video" để bắt đầu.';
-    } else empty.style.display = 'none';
+    $('tables').innerHTML = out;
+    renderStats();
 
     $('addBtn').style.display = canSave ? '' : 'none';
   }
+
+  // ---------- monthly stats ----------
+  var statYear = new Date().getFullYear();
+  try { var sy = parseInt(localStorage.getItem('vt-year'),10); if (sy) statYear = sy; } catch(e){}
+  var MONTHS = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+  function monthly(year){
+    var m = []; for (var i=0;i<12;i++) m.push([0,0]);
+    videos.forEach(function(v){
+      if (v.status < 2 || !v.end) return;
+      var p = v.end.split('-'); if (parseInt(p[0],10) !== year) return;
+      m[parseInt(p[1],10)-1][v.type||0]++;
+    });
+    return m;
+  }
+  function renderStats(){
+    var m = monthly(statYear);
+    $('yLabel').textContent = 'Năm ' + statYear;
+    var tot = [0,0]; m.forEach(function(x){ tot[0]+=x[0]; tot[1]+=x[1]; });
+    var now = new Date(), cm = now.getFullYear()===statYear ? m[now.getMonth()] : null;
+    $('tiles').innerHTML =
+      '<div class="tile"><div class="lab"><i style="background:var(--c-thuong)"></i>Thường cả năm</div><div class="val">'+tot[0]+'</div></div>'+
+      '<div class="tile"><div class="lab"><i style="background:var(--c-basic)"></i>Basic cả năm</div><div class="val">'+tot[1]+'</div></div>'+
+      '<div class="tile"><div class="lab">Tổng cả năm</div><div class="val">'+(tot[0]+tot[1])+'</div></div>'+
+      (cm ? '<div class="tile"><div class="lab">Tháng này ('+MONTHS[now.getMonth()]+')</div><div class="val">'+(cm[0]+cm[1])+'</div></div>' : '');
+
+    // chart
+    var svg = $('chart'), W = svg.clientWidth || 800, H = 240, L = 30, R = 8, T = 12, B = 26;
+    var max = 0; m.forEach(function(x){ max = Math.max(max, x[0], x[1]); });
+    var step = max <= 5 ? 1 : max <= 10 ? 2 : Math.ceil(max/5);
+    var top = Math.max(step*Math.ceil(max/step), step*4);
+    if (max <= 5) top = Math.max(5, max);
+    var ph = H - T - B, pw = W - L - R, gw = pw/12;
+    var bw = Math.max(4, Math.min(22, (gw - 10)/2 - 1));
+    var y = function(v){ return T + ph - v/top*ph; };
+    var g = '';
+    for (var v=0; v<=top; v+=step){
+      g += '<line class="'+(v===0?'base':'grid')+'" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'"/>'+
+           '<text x="'+(L-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'</text>';
+    }
+    m.forEach(function(x,i){
+      var cx = L + gw*i + gw/2;
+      g += '<rect class="hit" data-m="'+i+'" x="'+(L+gw*i+1)+'" y="'+T+'" width="'+(gw-2)+'" height="'+ph+'" rx="6"/>';
+      [0,1].forEach(function(t){
+        if (!x[t]) return;
+        var bx = t===0 ? cx - bw - 1 : cx + 1, by = y(x[t]), h = T+ph-by;
+        var rr = Math.min(4, h, bw/2);
+        // rounded top, square at baseline
+        g += '<path pointer-events="none" fill="var('+(t?'--c-basic':'--c-thuong')+')" d="M'+bx+','+(T+ph)+'V'+(by+rr)+'Q'+bx+','+by+' '+(bx+rr)+','+by+'H'+(bx+bw-rr)+'Q'+(bx+bw)+','+by+' '+(bx+bw)+','+(by+rr)+'V'+(T+ph)+'Z"/>';
+      });
+      g += '<text x="'+cx+'" y="'+(H-8)+'" text-anchor="middle">'+MONTHS[i]+'</text>';
+    });
+    svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    svg.innerHTML = g;
+    svg._m = m;
+
+    // table view
+    var rows = '';
+    m.forEach(function(x,i){ rows += '<tr><td>Tháng '+(i+1)+'</td><td>'+x[0]+'</td><td>'+x[1]+'</td><td><b>'+(x[0]+x[1])+'</b></td></tr>'; });
+    rows += '<tr><td><b>Cả năm</b></td><td><b>'+tot[0]+'</b></td><td><b>'+tot[1]+'</b></td><td><b>'+(tot[0]+tot[1])+'</b></td></tr>';
+    $('mtable').innerHTML = '<table><thead><tr><th>Tháng</th><th>Thường</th><th>Basic</th><th>Tổng</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+  $('chart').addEventListener('mousemove', function(e){
+    var hit = e.target.closest('.hit'), tip = $('tip');
+    if (!hit){ tip.style.display='none'; return; }
+    var i = +hit.getAttribute('data-m'), x = $('chart')._m[i];
+    tip.innerHTML = '<b>Tháng '+(i+1)+'/'+statYear+'</b>'+
+      '<div class="r"><i style="background:var(--c-thuong)"></i>Thường: '+x[0]+'</div>'+
+      '<div class="r"><i style="background:var(--c-basic)"></i>Basic: '+x[1]+'</div>'+
+      '<div>Tổng: '+(x[0]+x[1])+'</div>';
+    tip.style.display='block';
+    var wrap = $('chart').getBoundingClientRect(), tw = tip.offsetWidth;
+    var left = e.clientX - wrap.left + 14; if (left + tw > wrap.width) left = e.clientX - wrap.left - tw - 14;
+    tip.style.left = left+'px'; tip.style.top = Math.max(0, e.clientY - wrap.top - 40)+'px';
+  });
+  $('chart').addEventListener('mouseleave', function(){ $('tip').style.display='none'; });
+  function setYear(d){ statYear += d; try{ localStorage.setItem('vt-year', statYear); }catch(e){} renderStats(); }
+  $('yPrev').onclick = function(){ setYear(-1); };
+  $('yNext').onclick = function(){ setYear(1); };
+  $('tblToggle').onclick = function(){
+    var t = $('mtable'), on = t.classList.toggle('show');
+    this.textContent = on ? 'Ẩn bảng' : 'Xem dạng bảng';
+  };
+  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(renderStats, 120); });
 
   // ---------- saving ----------
   function buildDoc(){
@@ -256,13 +398,14 @@
 
   // ---------- form ----------
   var editingId = null;
+  var presetType = 0;
   function openForm(v){
     editingId = v ? v.id : null;
     $('formTitle').textContent = v ? 'Sửa video' : 'Thêm video';
     $('fSubmit').textContent = v ? 'Lưu' : 'Thêm';
     $('fName').value = v ? v.name : '';
     $('fStatus').value = v ? String(v.status) : (filter !== 'all' ? filter : '0');
-    $('fType').value = v ? String(v.type||0) : '0';
+    $('fType').value = v ? String(v.type||0) : String(presetType||0);
     $('fStart').value = v ? (v.start||'') : '';
     $('fEnd').value = v ? (v.end||'') : '';
     $('fErr').style.display = 'none';
@@ -272,7 +415,7 @@
   function closeForm(){ $('formModal').classList.remove('show'); }
   function find(id){ for (var i=0;i<videos.length;i++) if (videos[i].id===id) return videos[i]; return null; }
 
-  $('addBtn').onclick = function(){ openForm(null); };
+  $('addBtn').onclick = function(){ presetType = 0; openForm(null); };
   $('fCancel').onclick = closeForm;
   $('form').addEventListener('submit', function(e){
     e.preventDefault();
@@ -305,7 +448,9 @@
     try { localStorage.setItem('vt-filter', filter); } catch(err){}
     render();
   });
-  $('rows').addEventListener('click', function(e){
+  $('tables').addEventListener('click', function(e){
+    var ad = e.target.closest('[data-add]');
+    if (ad){ presetType = +ad.getAttribute('data-add'); openForm(null); return; }
     var ed = e.target.closest('[data-edit]');
     if (ed){ openForm(find(ed.getAttribute('data-edit'))); return; }
     var dl = e.target.closest('[data-del]');
@@ -316,7 +461,7 @@
       $('delModal').classList.add('show');
     }
   });
-  $('rows').addEventListener('change', function(e){
+  $('tables').addEventListener('change', function(e){
     var s = e.target.closest('select.status'); if (!s) return;
     var v = find(s.getAttribute('data-id')); if (!v) return;
     v.status = parseInt(s.value,10);
