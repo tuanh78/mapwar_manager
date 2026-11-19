@@ -211,10 +211,13 @@
   var TYPES = ['Thường','Basic'];
   function today(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function fmt(d){ if(!d) return ''; var p=d.split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : d; }
-  // Auto-fill dates (only when empty) as the status moves forward
+  // Keep dates in step with the status:
+  // moving forward fills empty dates with today; moving back clears dates that no longer apply.
   function autoDates(v){
     if (v.status>=1 && !v.start) v.start = today();
     if (v.status>=2 && !v.end) v.end = today();
+    if (v.status<2) v.end = '';
+    if (v.status<1) v.start = '';
   }
   var videos = [];
   try { videos = JSON.parse(document.getElementById('video-data').textContent) || []; } catch(e){ videos = []; }
