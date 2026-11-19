@@ -9,4 +9,15 @@ Công cụ theo dõi trạng thái video (`index.html`).
 - Lọc theo trạng thái (mặc định: Tất cả), thêm / sửa / xóa video
 - Ngày bắt đầu / hoàn thành tự điền khi chuyển trạng thái (nếu đang trống)
 
-Mở `index.html` trực tiếp trên trình duyệt (hoặc bật GitHub Pages). Khi chạy độc lập, dữ liệu được lưu trong localStorage của trình duyệt đó.
+## Lưu dữ liệu
+
+Danh sách video được lưu online trong Firebase Realtime Database
+(`mwmanager-5bde1`, đường dẫn `/videos`). Ai mở trang cũng xem và sửa được, không cần đăng nhập;
+thay đổi của người khác tự hiện ra ngay. Lần mở đầu tiên, trang tự đưa danh sách có sẵn trong
+`index.html` lên database.
+
+Rules của database:
+
+```json
+{ "rules": { "videos": { ".read": true, ".write": true } } }
+```

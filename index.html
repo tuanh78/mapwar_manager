@@ -108,6 +108,17 @@
   .linkbtn{border:none;background:none;color:var(--muted);font-size:13px;text-decoration:underline;padding:0}
   .mtable{margin-top:10px;display:none} .mtable.show{display:block}
   .mtable table{min-width:0} .mtable td,.mtable th{padding:7px 12px;font-variant-numeric:tabular-nums}
+  .ghbar{display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:18px;font-size:13.5px}
+  .ghbar.show{display:flex}
+  .ghbar .who{display:flex;align-items:center;gap:8px;color:var(--muted)}
+  .ghbar .who b{color:var(--ink);font-weight:600}
+  .ghdot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .ghdot.ok{background:var(--s3-fg)}
+  .modal p.help{font-size:13.5px;color:var(--muted);margin:0 0 14px}
+  .modal ol{font-size:13.5px;margin:0 0 16px;padding-left:20px;color:var(--ink)}
+  .modal ol li{margin-bottom:4px}
+  .modal a{color:var(--s2-fg)}
+  input[type=password]{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-bottom:16px}
   .savebar{font-size:12.5px;color:var(--muted);margin-top:12px;min-height:18px}
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
@@ -137,6 +148,10 @@
     </div>
     <button class="btn btn-primary" id="addBtn">+ Thêm video</button>
   </header>
+
+  <div class="ghbar" id="ghbar">
+    <div class="who"><span class="ghdot" id="ghdot"></span><span id="ghtext"></span></div>
+  </div>
 
   <section class="stats" aria-labelledby="statsTitle">
     <div class="stats-head">
@@ -191,6 +206,17 @@
   </form>
 </div>
 
+<div class="overlay" id="migModal">
+  <div class="modal">
+    <h2>Dùng dữ liệu nào?</h2>
+    <p class="help" id="migText"></p>
+    <div class="row-btns">
+      <button class="btn" id="migRemote">Giữ dữ liệu online</button>
+      <button class="btn btn-primary" id="migLocal">Dùng dữ liệu trình duyệt</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="delModal">
   <div class="modal">
     <h2>Xóa video?</h2>
@@ -225,8 +251,7 @@
   var filter = 'all';
   try { var f = localStorage.getItem('vt-filter'); if (f !== null) filter = f; } catch(e){}
 
-  var artifactApi = null, canSave = false, pending = null, saving = false, localMode = false;
-  var LS_KEY = 'vt-videos';
+  var artifactApi = null, canSave = false, pending = null, saving = false, dbMode = false;
   var $ = function(id){ return document.getElementById(id); };
   var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
 
@@ -377,18 +402,19 @@
   function setStatus(t){ $('savebar').textContent = t; }
   function scheduleSave(){
     if (!canSave) return;
-    if (localMode){
-      try { saveLocal(); setStatus('Đã lưu trên trình duyệt này'); }
-      catch(e){ setStatus('Không lưu được: trình duyệt chặn bộ nhớ cục bộ.'); }
-      return;
-    }
     setStatus('Đang lưu…');
     clearTimeout(pending);
-    pending = setTimeout(doSave, 700);
+    pending = setTimeout(doSave, dbMode ? 500 : 700);
   }
   function doSave(){
     if (saving) { pending = setTimeout(doSave, 300); return; }
     saving = true;
+    if (dbMode){
+      dbSave().then(function(){ setStatus('Đã lưu'); })
+      .catch(function(){ setStatus('Không lưu được. Kiểm tra mạng rồi thử lại.'); })
+      .then(function(){ saving = false; });
+      return;
+    }
     artifactApi.publish(buildDoc()).then(function(){
       setStatus('Đã lưu');
     }).catch(function(err){
@@ -478,35 +504,79 @@
     $(id).addEventListener('click', function(e){ if (e.target === $(id)) $(id).classList.remove('show'); });
   });
 
-  // ---------- init ----------
-  // On Claude: save via the artifact capability (shared, across devices).
-  // Opened standalone (e.g. from the repo / GitHub Pages): save in this browser's localStorage.
-  // Videos embedded in the page (e.g. pushed to the repo) are merged into this browser's list:
-  // any embedded video this browser has not seen yet is added, so new data from the repo always shows up,
-  // while videos the user deleted locally stay deleted.
-  var SEEN_KEY = 'vt-seen-ids', embedded = videos.slice();
-  function saveLocal(){
-    localStorage.setItem(LS_KEY, JSON.stringify(videos));
-    var seen = {}; try { (JSON.parse(localStorage.getItem(SEEN_KEY)) || []).forEach(function(id){ seen[id]=1; }); } catch(e){}
-    embedded.forEach(function(v){ seen[v.id]=1; });
-    localStorage.setItem(SEEN_KEY, JSON.stringify(Object.keys(seen)));
+  // ---------- Online storage (when opened outside Claude, e.g. GitHub Pages) ----------
+  // Data lives in a Firebase Realtime Database that anyone with the page can read and edit,
+  // no sign-in. Changes from other people show up live.
+  var DB_URL = 'https://mwmanager-5bde1-default-rtdb.asia-southeast1.firebasedatabase.app';
+  var OLD_LOCAL_KEY = 'vt-videos';
+  function dbPath(){ return DB_URL.replace(/\/+$/,'') + '/videos.json'; }
+  function toList(x){ return (Array.isArray(x) ? x : (x ? Object.keys(x).map(function(k){ return x[k]; }) : [])).filter(Boolean); }
+  // Stored as { items: [...], updated: <time> }. null = database never set up yet.
+  function dbLoad(){
+    return fetch(dbPath(), { cache: 'no-store' }).then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(d){ return d === null ? null : toList(d.items); });
   }
-  function useLocal(){
-    localMode = true; canSave = true;
+  function dbSave(){
+    return fetch(dbPath(), { method: 'PUT', body: JSON.stringify({ items: videos, updated: Date.now() }) })
+      .then(function(r){ if (!r.ok) throw new Error(r.status); });
+  }
+  function renderDbBar(ok){
+    $('ghbar').classList.add('show');
+    $('ghdot').className = 'ghdot' + (ok ? ' ok' : '');
+    $('ghtext').textContent = ok ? 'Đang online · ai mở trang này cũng xem và sửa được, thay đổi tự cập nhật' : 'Mất kết nối, đang thử lại…';
+  }
+  function liveUpdates(){
+    // Realtime stream: any change saved by anyone is pushed here
     try {
-      var raw = localStorage.getItem(LS_KEY);
-      if (raw){
-        var local = JSON.parse(raw) || [], seen = {}, have = {};
-        try { (JSON.parse(localStorage.getItem(SEEN_KEY)) || []).forEach(function(id){ seen[id]=1; }); } catch(e){}
-        local.forEach(function(v){ have[v.id]=1; });
-        embedded.forEach(function(v){ if (!have[v.id] && !seen[v.id]) local.push(v); });
-        videos = local;
-        saveLocal();
-      }
+      var es = new EventSource(dbPath());
+      var onChange = function(){
+        if (pending || saving) return;   // our own edit is on its way; it will win
+        dbLoad().then(function(list){ if (list){ videos = list; render(); } }).catch(function(){});
+      };
+      es.addEventListener('put', onChange);
+      es.addEventListener('patch', onChange);
+      es.onopen = function(){ renderDbBar(true); };
+      es.onerror = function(){ renderDbBar(false); };
     } catch(e){}
-    setStatus('Dữ liệu được lưu trên trình duyệt này.');
-    render();
   }
+  // A list saved in this browser by an older version of the page: offer to move it online once.
+  function offerMigration(){
+    var old = null;
+    try { old = JSON.parse(localStorage.getItem(OLD_LOCAL_KEY) || 'null'); } catch(e){}
+    var forget = function(){ try { localStorage.removeItem(OLD_LOCAL_KEY); localStorage.removeItem('vt-seen-ids'); localStorage.removeItem('vt-gh-token'); } catch(e){} };
+    if (!old || !old.length) return;
+    if (!videos.length){ videos = old; forget(); render(); scheduleSave(); return; }
+    $('migText').innerHTML = 'Trình duyệt này còn <b>' + old.length + ' video</b> bạn đã lưu trước đây (chưa đưa lên online). Bản online hiện có <b>' + videos.length + ' video</b>. Bạn muốn dùng dữ liệu nào?';
+    $('migModal').classList.add('show');
+    $('migLocal').onclick = function(){ videos = old; forget(); $('migModal').classList.remove('show'); render(); scheduleSave(); };
+    $('migRemote').onclick = function(){ forget(); $('migModal').classList.remove('show'); };
+  }
+  function useOnline(){
+    dbMode = true; canSave = false; render();
+    if (!DB_URL){
+      $('ghbar').classList.add('show'); $('ghtext').textContent = 'Chưa cấu hình nơi lưu dữ liệu online, đang ở chế độ xem.';
+      return;
+    }
+    setStatus('Đang tải dữ liệu…');
+    var embedded = videos.slice();
+    dbLoad().then(function(list){
+      canSave = true;
+      if (list === null){
+        // first run: put the starting list that ships with the page into the database
+        videos = embedded; render(); renderDbBar(true); scheduleSave();
+      } else {
+        videos = list; render(); renderDbBar(true); setStatus('');
+      }
+      offerMigration();
+      liveUpdates();
+    }).catch(function(){
+      render(); renderDbBar(false);
+      setStatus('Không tải được dữ liệu. Kiểm tra mạng rồi tải lại trang.');
+    });
+  }
+
+  // ---------- init ----------
+  // On Claude: save via the artifact capability. Elsewhere (GitHub Pages, a local file): the online database.
   render();
   if (window.claude && typeof window.claude.use === 'function'){
     setStatus('Đang kết nối…');
@@ -515,7 +585,7 @@
       else setStatus('Chế độ chỉ xem: bạn không có quyền chỉnh sửa trang này.');
     }).catch(function(){ setStatus('Chế độ chỉ xem: không thể lưu thay đổi ở đây.'); });
   } else {
-    useLocal();
+    useOnline();
   }
 })();
 </script>
