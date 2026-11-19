@@ -83,6 +83,22 @@
   .btn-sm{padding:6px 12px;font-size:13px}
   .card.typed{border-top:3px solid var(--tc)}
   /* stats */
+  .goal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+  .goal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .goal h2{font-size:17px;margin:0}
+  .goal-main{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:12px 0 10px}
+  .goal-count{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+  .goal-count small{font-size:15px;font-weight:500;color:var(--muted)}
+  .goal-input{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+  .goal-input input{width:84px;font:inherit;font-weight:600;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);text-align:center}
+  .goal-input input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .goal-input input:disabled{opacity:.6}
+  .bar{display:flex;gap:2px;height:14px;border-radius:7px;background:var(--s0-bg);overflow:hidden}
+  .bar span{display:block;height:100%;transition:width .3s}
+  .bar .b0{background:var(--c-thuong)} .bar .b1{background:var(--c-basic)}
+  .goal-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:13.5px;color:var(--muted)}
+  .goal-foot b{color:var(--ink);font-weight:600}
+  .goal-foot .done{color:var(--s3-fg);font-weight:600}
   .stats{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px 14px;margin-bottom:28px}
   .stats-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
   .stats h2{font-size:17px;margin:0}
@@ -155,6 +171,23 @@
   <div class="ghbar" id="ghbar">
     <div class="who"><span class="ghdot" id="ghdot"></span><span id="ghtext"></span></div>
   </div>
+
+  <section class="goal" aria-labelledby="goalTitle">
+    <div class="goal-head">
+      <h2 id="goalTitle">Tiến độ đăng video</h2>
+      <div class="yearnav">
+        <button class="icon-btn" id="gPrev" aria-label="Tháng trước"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <b id="gLabel"></b>
+        <button class="icon-btn" id="gNext" aria-label="Tháng sau"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <div class="goal-main">
+      <div class="goal-count" id="gCount"></div>
+      <label class="goal-input">Mục tiêu tháng <input type="number" id="gInput" min="0" step="1" inputmode="numeric" placeholder="0"> video</label>
+    </div>
+    <div class="bar" id="gBar" role="progressbar" aria-label="Tiến độ đăng video trong tháng"></div>
+    <div class="goal-foot"><span id="gLeft"></span><span id="gSplit"></span></div>
+  </section>
 
   <section class="stats" aria-labelledby="statsTitle">
     <div class="stats-head">
@@ -246,11 +279,18 @@
   function autoDates(v){
     if (v.status>=1 && !v.start) v.start = today();
     if (v.status>=2 && !v.end) v.end = today();
+    if (v.status>=3 && !v.posted) v.posted = today();
+    if (v.status<3) v.posted = '';
     if (v.status<2) v.end = '';
     if (v.status<1) v.start = '';
   }
-  var videos = [];
-  try { videos = JSON.parse(document.getElementById('video-data').textContent) || []; } catch(e){ videos = []; }
+  // date a video was posted: recorded when it moves to Đã đăng (older entries fall back to the finish date)
+  function postedDate(v){ return v.status === 3 ? (v.posted || v.end || '') : ''; }
+  var videos = [], goals = {};   // goals: { 'YYYY-MM': number }
+  try {
+    var raw = JSON.parse(document.getElementById('video-data').textContent);
+    if (Array.isArray(raw)) videos = raw; else if (raw){ videos = raw.items || []; goals = raw.goals || {}; }
+  } catch(e){ videos = []; }
 
   var filter = 'all';
   try { var f = localStorage.getItem('vt-filter'); if (f !== null) filter = f; } catch(e){}
@@ -307,9 +347,56 @@
     });
     $('tables').innerHTML = out;
     renderStats();
+    renderGoal();
 
     $('addBtn').style.display = canSave ? '' : 'none';
   }
+
+  // ---------- monthly goal & progress ----------
+  var gMonth = (function(){ var d = new Date(); return { y: d.getFullYear(), m: d.getMonth()+1 }; })();
+  function gKey(){ return gMonth.y + '-' + String(gMonth.m).padStart(2,'0'); }
+  function renderGoal(){
+    var key = gKey(), goal = +goals[key] || 0, c = [0,0];
+    videos.forEach(function(v){ var d = postedDate(v); if (d && d.slice(0,7) === key) c[v.type||0]++; });
+    var n = c[0] + c[1];
+    $('gLabel').textContent = 'Tháng ' + gMonth.m + '/' + gMonth.y;
+    $('gCount').innerHTML = n + (goal ? ' <small>/ ' + goal + ' video đã đăng</small>' : ' <small>video đã đăng</small>');
+    var inp = $('gInput');
+    if (document.activeElement !== inp) inp.value = goal || '';
+    inp.disabled = !canSave;
+    var denom = Math.max(goal, n) || 1;
+    $('gBar').innerHTML = (goal || n)
+      ? '<span class="b0" style="width:' + (c[0]/denom*100) + '%"></span><span class="b1" style="width:' + (c[1]/denom*100) + '%"></span>'
+      : '';
+    $('gBar').setAttribute('aria-valuenow', n); $('gBar').setAttribute('aria-valuemax', goal || 0);
+    var left = '';
+    if (!goal) left = canSave ? 'Nhập mục tiêu để theo dõi tiến độ tháng này' : 'Chưa đặt mục tiêu cho tháng này';
+    else if (n >= goal) left = '<span class="done">✓ Đạt mục tiêu' + (n > goal ? ' (vượt ' + (n-goal) + ' video)' : '') + '</span>';
+    else {
+      left = '<b>' + Math.round(n/goal*100) + '%</b> · còn <b>' + (goal-n) + '</b> video';
+      var now = new Date();
+      if (now.getFullYear() === gMonth.y && now.getMonth()+1 === gMonth.m){
+        var daysLeft = new Date(gMonth.y, gMonth.m, 0).getDate() - now.getDate() + 1;
+        left += ' · còn ' + daysLeft + ' ngày (≈ ' + (Math.round((goal-n)/daysLeft*10)/10).toString().replace('.', ',') + ' video/ngày)';
+      }
+    }
+    $('gLeft').innerHTML = left;
+    $('gSplit').innerHTML = '<span style="color:var(--c-thuong)">■</span> Thường <b>' + c[0] + '</b> &nbsp; <span style="color:var(--c-basic)">■</span> Basic <b>' + c[1] + '</b>';
+  }
+  function shiftMonth(d){
+    gMonth.m += d;
+    if (gMonth.m < 1){ gMonth.m = 12; gMonth.y--; } else if (gMonth.m > 12){ gMonth.m = 1; gMonth.y++; }
+    renderGoal();
+  }
+  $('gPrev').onclick = function(){ shiftMonth(-1); };
+  $('gNext').onclick = function(){ shiftMonth(1); };
+  $('gInput').addEventListener('change', function(){
+    if (!canSave) return;
+    var n = Math.max(0, Math.floor(+this.value || 0));
+    if (n) goals[gKey()] = n; else delete goals[gKey()];
+    renderGoal(); scheduleSave();
+  });
+  $('gInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') this.blur(); });
 
   // ---------- monthly stats ----------
   var statYear = new Date().getFullYear();
@@ -396,7 +483,7 @@
 
   // ---------- saving ----------
   function buildDoc(){
-    var json = JSON.stringify(videos).replace(/</g,'\\u003c');
+    var json = JSON.stringify({ items: videos, goals: goals }).replace(/</g,'\\u003c');
     var open = '<script id="video-data" type="application/json">';
     var close = '</' + 'script>';
     var start = PRISTINE.indexOf(open);
@@ -527,10 +614,10 @@
   // Stored as { items: [...], updated: <time> }. null = database never set up yet.
   function dbLoad(){
     return fetch(dbPath(), { cache: 'no-store' }).then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function(d){ return d === null ? null : toList(d.items); });
+      .then(function(d){ return d === null ? null : { items: toList(d.items), goals: d.goals || {} }; });
   }
   function dbSave(){
-    return fetch(dbPath(), { method: 'PUT', body: JSON.stringify({ items: videos, updated: Date.now() }) })
+    return fetch(dbPath(), { method: 'PUT', body: JSON.stringify({ items: videos, goals: goals, updated: Date.now() }) })
       .then(function(r){ if (!r.ok) throw new Error(r.status); });
   }
   function renderDbBar(ok){
@@ -544,7 +631,7 @@
       var es = new EventSource(dbPath());
       var onChange = function(){
         if (pending || saving) return;   // our own edit is on its way; it will win
-        dbLoad().then(function(list){ if (list){ videos = list; render(); } }).catch(function(){});
+        dbLoad().then(function(res){ if (res){ videos = res.items; goals = res.goals; render(); } }).catch(function(){});
       };
       es.addEventListener('put', onChange);
       es.addEventListener('patch', onChange);
@@ -572,13 +659,13 @@
     }
     setStatus('Đang tải dữ liệu…');
     var embedded = videos.slice();
-    dbLoad().then(function(list){
+    dbLoad().then(function(res){
       canSave = true;
-      if (list === null){
+      if (res === null){
         // first run: put the starting list that ships with the page into the database
         videos = embedded; render(); renderDbBar(true); scheduleSave();
       } else {
-        videos = list; render(); renderDbBar(true); setStatus('');
+        videos = res.items; goals = res.goals; render(); renderDbBar(true); setStatus('');
       }
       offerMigration();
       liveUpdates();
