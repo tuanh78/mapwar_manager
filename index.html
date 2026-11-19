@@ -130,6 +130,9 @@
   input[type=text]:focus,select.field:focus{outline:2px solid var(--accent);outline-offset:-1px}
   .err{color:var(--danger);font-size:13px;margin:-10px 0 12px;display:none}
   .row-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+  .check{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:500;color:var(--ink);margin:-4px 0 16px;cursor:pointer;user-select:none}
+  .check input{width:17px;height:17px;margin:0;accent-color:var(--accent);cursor:pointer}
+  .field:disabled{opacity:.45;cursor:not-allowed}
   @media (max-width:560px){
     .st-col{width:auto} th.stt,td.stt{width:40px;padding-right:4px}
     td,th{padding:10px 10px}
@@ -189,6 +192,7 @@
     <label for="fName">Tên video</label>
     <input type="text" id="fName" autocomplete="off" placeholder="Nhập tên video">
     <div class="err" id="fErr">Vui lòng nhập tên video.</div>
+    <label class="check" id="fBothRow"><input type="checkbox" id="fBoth" checked> Thêm cho cả 2 loại (Thường và Basic)</label>
     <div class="two">
       <div><label for="fType">Loại video</label>
       <select class="field" id="fType"><option value="0">Thường</option><option value="1">Basic</option></select></div>
@@ -435,6 +439,10 @@
     $('fName').value = v ? v.name : '';
     $('fStatus').value = v ? String(v.status) : (filter !== 'all' ? filter : '0');
     $('fType').value = v ? String(v.type||0) : String(presetType||0);
+    // adding: one entry per type by default; editing: a single video
+    $('fBothRow').style.display = v ? 'none' : '';
+    $('fBoth').checked = !v;
+    $('fType').disabled = !v;
     $('fStart').value = v ? (v.start||'') : '';
     $('fEnd').value = v ? (v.end||'') : '';
     $('fErr').style.display = 'none';
@@ -446,6 +454,7 @@
 
   $('addBtn').onclick = function(){ presetType = 0; openForm(null); };
   $('fCancel').onclick = closeForm;
+  $('fBoth').onchange = function(){ $('fType').disabled = this.checked; };
   $('form').addEventListener('submit', function(e){
     e.preventDefault();
     var name = $('fName').value.trim();
@@ -456,8 +465,12 @@
     if (editingId){
       var v = find(editingId); if (v){ for (var k in data) v[k]=data[k]; autoDates(v); }
     } else {
-      data.id = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-      autoDates(data); videos.push(data);
+      var types = $('fBoth').checked ? [0,1] : [data.type];
+      types.forEach(function(t){
+        var item = { name:data.name, status:data.status, type:t, start:data.start, end:data.end };
+        item.id = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+        autoDates(item); videos.push(item);
+      });
     }
     closeForm(); render(); scheduleSave();
   });
