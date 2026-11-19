@@ -375,7 +375,7 @@
   function scheduleSave(){
     if (!canSave) return;
     if (localMode){
-      try { localStorage.setItem(LS_KEY, JSON.stringify(videos)); setStatus('Đã lưu trên trình duyệt này'); }
+      try { saveLocal(); setStatus('Đã lưu trên trình duyệt này'); }
       catch(e){ setStatus('Không lưu được: trình duyệt chặn bộ nhớ cục bộ.'); }
       return;
     }
@@ -478,9 +478,29 @@
   // ---------- init ----------
   // On Claude: save via the artifact capability (shared, across devices).
   // Opened standalone (e.g. from the repo / GitHub Pages): save in this browser's localStorage.
+  // Videos embedded in the page (e.g. pushed to the repo) are merged into this browser's list:
+  // any embedded video this browser has not seen yet is added, so new data from the repo always shows up,
+  // while videos the user deleted locally stay deleted.
+  var SEEN_KEY = 'vt-seen-ids', embedded = videos.slice();
+  function saveLocal(){
+    localStorage.setItem(LS_KEY, JSON.stringify(videos));
+    var seen = {}; try { (JSON.parse(localStorage.getItem(SEEN_KEY)) || []).forEach(function(id){ seen[id]=1; }); } catch(e){}
+    embedded.forEach(function(v){ seen[v.id]=1; });
+    localStorage.setItem(SEEN_KEY, JSON.stringify(Object.keys(seen)));
+  }
   function useLocal(){
     localMode = true; canSave = true;
-    try { var raw = localStorage.getItem(LS_KEY); if (raw) videos = JSON.parse(raw) || videos; } catch(e){}
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (raw){
+        var local = JSON.parse(raw) || [], seen = {}, have = {};
+        try { (JSON.parse(localStorage.getItem(SEEN_KEY)) || []).forEach(function(id){ seen[id]=1; }); } catch(e){}
+        local.forEach(function(v){ have[v.id]=1; });
+        embedded.forEach(function(v){ if (!have[v.id] && !seen[v.id]) local.push(v); });
+        videos = local;
+        saveLocal();
+      }
+    } catch(e){}
     setStatus('Dữ liệu được lưu trên trình duyệt này.');
     render();
   }
